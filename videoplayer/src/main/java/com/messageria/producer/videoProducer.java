@@ -1,17 +1,15 @@
 package com.messageria.producer;
 
+import com.messageria.config.rabbitMQConfig;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 
 public class videoProducer {
     private final static String EXCHANGE_NAME = "video.exchange";
 
     public void publishVideo(String videoId) throws Exception {
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost"); // Altere se necessário
-
-        try (Connection connection = factory.newConnection();
+        rabbitMQConfig config = new rabbitMQConfig();
+        try (Connection connection = config.createConnection();
              Channel channel = connection.createChannel()) {
 
             // A mensagem é publicada diretamente no exchange, não na fila
