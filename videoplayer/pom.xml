@@ -19,6 +19,13 @@
         <artifactId>amqp-client</artifactId>
         <version>5.21.0</version>
     </dependency>
+    <dependency>
+    <groupId>org.jcodec</groupId>
+    <artifactId>jcodec-javase</artifactId>
+    <version>0.2.5</version>
+</dependency>
+
 </dependencies>
+
 
 </project>

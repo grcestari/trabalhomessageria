@@ -1,0 +1,62 @@
+Guia de Instalação e Execução com Docker
+
+Este guia explica como configurar e executar o RabbitMQ usando Docker, que é a única dependência externa necessária para este projeto. A aplicação Java será executada localmente e se comunicará com o container Docker do RabbitMQ.
+
+## Pré-requisitos
+
+- **Docker**: Você precisa ter o Docker instalado e em execução na sua máquina.
+  - Para instalar, siga as instruções no site oficial: [https://www.docker.com/get-started](https://www.docker.com/get-started)
+
+## Passo 1: Iniciar o RabbitMQ com Docker
+
+O comando abaixo irá baixar a imagem do RabbitMQ (com a interface de gerenciamento incluída) e iniciar um container. As credenciais e portas são configuradas para corresponder exatamente ao que a aplicação Java espera.
+
+Abra seu terminal ou PowerShell e execute o seguinte comando:
+
+```bash
+docker run -d --name rabbitmq-video-processor -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=user -e RABBITMQ_DEFAULT_PASS=password rabbitmq:3-management
+```
+
+**O que este comando faz?**
+- `docker run`: Executa um container.
+- `-d`: Modo "detached", roda o container em segundo plano.
+- `--name rabbitmq-video-processor`: Dá um nome fácil de lembrar ao container.
+- `-p 5672:5672`: Mapeia a porta padrão do RabbitMQ para a sua máquina local.
+- `-p 15672:15672`: Mapeia a porta da interface de gerenciamento web.
+- `-e RABBITMQ_DEFAULT_USER=user`: Define o usuário como "user".
+- `-e RABBITMQ_DEFAULT_PASS=password`: Define a senha como "password".
+- `rabbitmq:3-management`: Especifica a imagem a ser usada.
+
+Para verificar se o container está rodando, use o comando: `docker ps`. Você deverá ver `rabbitmq-video-processor` na lista.
+
+## Passo 2: Configurar a Topologia do RabbitMQ
+
+Antes de rodar os consumidores, você precisa criar as exchanges e filas. A classe `rabbitMQConfig` foi projetada para fazer isso.
+
+1. Abra o projeto na sua IDE (IntelliJ, Eclipse, etc.).
+2. Encontre o arquivo `src/main/java/com/messageria/config/rabbitMQConfig.java`.
+3. Execute o método `main` desta classe. Isso irá se conectar ao RabbitMQ no Docker e criar toda a estrutura necessária.
+
+Você pode verificar se as filas e exchanges foram criadas acessando a interface de gerenciamento do RabbitMQ no seu navegador: **http://localhost:15672/** (login: `user`, senha: `password`).
+
+## Passo 3: Executar os Componentes Java
+
+Agora, com o RabbitMQ rodando e configurado, você pode iniciar os componentes da aplicação. **É importante que os consumidores estejam rodando antes que o produtor envie uma mensagem.**
+
+1. **Execute os Consumidores**: Em terminais separados (ou executando as classes pela sua IDE), inicie cada consumidor:
+   - `transcodeConsumer.java`
+   - `thumbnailConsumer.java`
+   - `notificationConsumer.java`
+
+2. **Execute o Produtor**: Para simular o upload de um vídeo e iniciar o fluxo, execute o método `main` da classe `videoProducer.java`.
+
+Você verá os logs aparecendo nos consoles de cada consumidor à medida que eles processam as mensagens.
+
+## Passo 4: Parando o Ambiente
+
+Quando terminar, você pode parar e remover o container do RabbitMQ com os seguintes comandos:
+
+```bash
+docker stop rabbitmq-video-processor
+docker rm rabbitmq-video-processor
+```
