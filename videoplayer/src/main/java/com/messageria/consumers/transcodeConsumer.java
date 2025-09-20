@@ -4,9 +4,12 @@ import com.rabbitmq.client.*;
 import com.messageria.config.rabbitMQConfig;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class transcodeConsumer {
     private final static String QUEUE_NAME = "transcode.queue";
+    private static final Logger LOGGER = LoggerFactory.getLogger(transcodeConsumer.class);
 
     public static void main(String[] args) throws Exception {
         rabbitMQConfig config = new rabbitMQConfig();
@@ -16,14 +19,14 @@ public class transcodeConsumer {
             
             // A declaração da fila é removida, pois é gerenciada centralmente pelo rabbitMQConfig.setupTopology()
             
-        System.out.println(" [*] Transcode Consumer aguardando mensagens.");
+        LOGGER.info("Transcode Consumer aguardando mensagens na fila '{}'.", QUEUE_NAME);
 
         Consumer consumer = new DefaultConsumer(channel) {
             @Override
             public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                 try {
                     String message = new String(body, StandardCharsets.UTF_8);
-                    System.out.println(" [x] Recebida mensagem para transcodificação: '" + message + "'");
+                    LOGGER.info("Recebida mensagem para transcodificação: '{}'", message);
 
                     // Lógica de processamento do vídeo (transcodificação)
                     // Simulando um processamento bem-sucedido.
@@ -31,14 +34,14 @@ public class transcodeConsumer {
                     boolean processingIsSuccessful = true;
 
                     if (processingIsSuccessful) {
-                        System.out.println(" [✔] Transcodificação concluída com sucesso para: '" + message + "'");
+                        LOGGER.info("Transcodificação concluída com sucesso para: '{}'", message);
                         channel.basicAck(envelope.getDeliveryTag(), false); // Confirma o sucesso.
                     } else {
-                        System.out.println(" [!] Falha na transcodificação para: '" + message + "'. Enviando para DLQ.");
+                        LOGGER.warn("Falha na transcodificação para: '{}'. Enviando para DLQ.", message);
                         channel.basicNack(envelope.getDeliveryTag(), false, false); // Rejeita e envia para a DLQ.
                     }
                 } catch (Exception e) {
-                    System.err.println(" [!] Erro inesperado ao processar mensagem. Enviando para DLQ. Erro: " + e.getMessage());
+                    LOGGER.error("Erro inesperado ao processar mensagem. Enviando para DLQ.", e);
                     channel.basicNack(envelope.getDeliveryTag(), false, false); // Rejeita em caso de exceção.
                 }
             }
