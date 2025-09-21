@@ -1,5 +1,7 @@
 package com.messageria.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -10,6 +12,7 @@ import java.util.concurrent.TimeoutException;
 
 public class rabbitMQConfig {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(rabbitMQConfig.class);
     private final ConnectionFactory factory;
 
     public rabbitMQConfig() {
@@ -22,6 +25,8 @@ public class rabbitMQConfig {
     public void setupTopology() throws IOException, TimeoutException {
         try (Connection connection = factory.newConnection();
              Channel channel = connection.createChannel()) {
+
+            LOGGER.info("Configurando a topologia do RabbitMQ...");
 
             // Declaração do Exchange Central do tipo "topic"
             channel.exchangeDeclare("video.exchange", "topic", true);
@@ -53,7 +58,7 @@ public class rabbitMQConfig {
             channel.queueDeclare("dlq.transcode.queue", true, false, false, null);
             channel.queueBind("dlq.transcode.queue", "dlx.video", "dead.transcode");
 
-            System.out.println("Configuração da topologia do RabbitMQ concluída.");
+            LOGGER.info("Configuração da topologia do RabbitMQ concluída com sucesso.");
         }
     }
 

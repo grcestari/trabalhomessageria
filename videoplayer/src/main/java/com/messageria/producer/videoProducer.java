@@ -1,10 +1,13 @@
 package com.messageria.producer;
 
 import com.messageria.config.rabbitMQConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 
 public class videoProducer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(videoProducer.class);
     private final static String EXCHANGE_NAME = "video.exchange";
 
     public void publishVideo(String videoId) throws Exception {
@@ -16,7 +19,7 @@ public class videoProducer {
             String message = "{\"videoId\": \"" + videoId + "\", \"status\": \"uploaded\"}";
             channel.basicPublish(EXCHANGE_NAME, "video.created", null, message.getBytes("UTF-8"));
 
-            System.out.println(" [x] Mensagem publicada para o vídeo: '" + videoId + "'");
+            LOGGER.info(" [x] Mensagem publicada para o vídeo: '{}'", videoId);
         }
     }
 

@@ -14,27 +14,30 @@ import org.jcodec.common.io.NIOUtils;
 import org.jcodec.common.io.SeekableByteChannel;
 import org.jcodec.containers.mp4.demuxer.MP4Demuxer;
 import org.jcodec.scale.AWTUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class thumbnailConsumer {
     private final static String QUEUE_NAME = "thumbnail.queue";
+    private static final Logger LOGGER = LoggerFactory.getLogger(thumbnailConsumer.class);
 
     public static void main(String[] args) throws Exception {
+        LOGGER.info("Iniciando Thumbnail Consumer...");
         rabbitMQConfig config = new rabbitMQConfig();
         
         try (Connection connection = config.createConnection();
              final Channel channel = connection.createChannel()) {
-            
-        System.out.println(" [*] Thumbnail Consumer aguardando mensagens.");
 
-        Consumer consumer = new DefaultConsumer(channel) {
-            @Override
-            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                String videoId = "";
+            LOGGER.info(" [*] Thumbnail Consumer aguardando mensagens. Para sair, pressione CTRL+C");
+
+            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                String jsonMessage = new String(delivery.getBody(), StandardCharsets.UTF_8);
+                String videoId = null;
+                final Envelope envelope = delivery.getEnvelope();
                 try {
-                    String jsonMessage = new String(body, StandardCharsets.UTF_8);
                     // Para simplicidade, parseamos o JSON manualmente. Em produção, use uma biblioteca como Gson ou Jackson.
                     videoId = jsonMessage.split("\"")[3];
-                    System.out.println(" [x] Recebida mensagem para gerar thumbnail para o vídeo: '" + videoId + "'");
+                    LOGGER.info(" [x] Recebida mensagem para gerar thumbnail para o vídeo: '{}'", videoId);
 
                     // --- Início da Lógica de Geração de Thumbnail ---
                     // Assumindo que os vídeos estão em 'uploads' e as thumbnails irão para 'thumbnails'
@@ -51,8 +54,8 @@ public class thumbnailConsumer {
 
                     // Lógica robusta para escolher um frame do meio do vídeo
                     int frameNumberToGrab;
-                    try (SeekableByteChannel channel = NIOUtils.readableChannel(videoFile)) {
-                        MP4Demuxer demuxer = MP4Demuxer.createMP4Demuxer(channel);
+                    try (SeekableByteChannel fileChannel = NIOUtils.readableChannel(videoFile)) {
+                        MP4Demuxer demuxer = MP4Demuxer.createMP4Demuxer(fileChannel);
                         int totalFrames = demuxer.getVideoTrack().getMeta().getTotalFrames();
                         if (totalFrames <= 0) {
                             throw new IOException("Vídeo corrompido ou sem frames: " + videoFile.getName());
@@ -71,15 +74,18 @@ public class thumbnailConsumer {
                     ImageIO.write(bufferedImage, "jpg", thumbnailFile);
                     // --- Fim da Lógica de Geração de Thumbnail ---
 
-                    System.out.println(" [✔] Thumbnail gerado com sucesso em: '" + thumbnailFile.getAbsolutePath() + "'");
+                    LOGGER.info(" [✔] Thumbnail gerado com sucesso em: '{}'", thumbnailFile.getAbsolutePath());
                     channel.basicAck(envelope.getDeliveryTag(), false);
                 } catch (Exception e) {
-                    System.err.println(" [!] Falha ao processar thumbnail para o vídeo '" + videoId + "'. Enviando para DLQ. Erro: " + e.getMessage());
+                    if (videoId != null) {
+                        LOGGER.error(" [!] Falha ao processar thumbnail para o vídeo '{}'. Enviando para DLQ.", videoId, e);
+                    } else {
+                        LOGGER.error(" [!] Falha ao processar a mensagem '{}'. Enviando para DLQ.", jsonMessage, e);
+                    }
                     channel.basicNack(envelope.getDeliveryTag(), false, false);
                 }
-            }
-        };
-            channel.basicConsume(QUEUE_NAME, false, consumer); // autoAck = false
+            };
+            channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> {}); // autoAck = false
 
             System.in.read();
         }
