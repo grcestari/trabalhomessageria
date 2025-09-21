@@ -1,0 +1,9 @@
+com\messageria\consumers\transcodeConsumer$1.class
+com\messageria\producer\videoProducer.class
+com\messageria\consumers\thumbnailConsumer$1.class
+com\messageria\Main.class
+com\messageria\config\rabbitMQConfig.class
+com\messageria\consumers\notificationConsumer$1.class
+com\messageria\consumers\transcodeConsumer.class
+com\messageria\consumers\notificationConsumer.class
+com\messageria\consumers\thumbnailConsumer.class

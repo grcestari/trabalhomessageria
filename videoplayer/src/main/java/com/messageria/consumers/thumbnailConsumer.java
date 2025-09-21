@@ -36,9 +36,15 @@ public class thumbnailConsumer {
                     videoId = jsonMessage.split("\"")[3];
                     System.out.println(" [x] Recebida mensagem para gerar thumbnail para o vídeo: '" + videoId + "'");
 
+                    String userDir = System.getProperty("user.dir");
+                    System.out.println("     Working dir = " + userDir);
+
+                    String uploadsDir = System.getenv().getOrDefault("UPLOADS_DIR", userDir + File.separator + "uploads");
+                    System.out.println("     Uploads dir (usado) = " + uploadsDir);
+
                     // --- Início da Lógica de Geração de Thumbnail ---
                     // Assumindo que os vídeos estão em 'uploads' e as thumbnails irão para 'thumbnails'
-                    File videoFile = new File("uploads/" + videoId + ".mp4");
+                    File videoFile = new File(uploadsDir, videoId + ".mp4");
                     if (!videoFile.exists()) {
                         throw new FileNotFoundException("Arquivo de vídeo não encontrado: " + videoFile.getAbsolutePath());
                     }
