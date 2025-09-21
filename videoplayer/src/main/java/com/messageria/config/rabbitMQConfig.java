@@ -7,12 +7,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class rabbitMQConfig {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(rabbitMQConfig.class);
     private final ConnectionFactory factory;
 
     public rabbitMQConfig() {
@@ -56,7 +53,7 @@ public class rabbitMQConfig {
             channel.queueDeclare("dlq.transcode.queue", true, false, false, null);
             channel.queueBind("dlq.transcode.queue", "dlx.video", "dead.transcode");
 
-            LOGGER.info("Configuração da topologia do RabbitMQ concluída com sucesso.");
+            System.out.println("Configuração da topologia do RabbitMQ concluída.");
         }
     }
 
@@ -67,7 +64,6 @@ public class rabbitMQConfig {
 
     // Main para executar o setup da topologia de forma independente
     public static void main(String[] args) throws IOException, TimeoutException {
-        LOGGER.info("Iniciando configuração da topologia do RabbitMQ...");
         rabbitMQConfig config = new rabbitMQConfig();
         config.setupTopology();
     }

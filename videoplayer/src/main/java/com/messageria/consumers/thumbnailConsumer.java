@@ -14,12 +14,9 @@ import org.jcodec.common.io.NIOUtils;
 import org.jcodec.common.io.SeekableByteChannel;
 import org.jcodec.containers.mp4.demuxer.MP4Demuxer;
 import org.jcodec.scale.AWTUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class thumbnailConsumer {
     private final static String QUEUE_NAME = "thumbnail.queue";
-    private static final Logger LOGGER = LoggerFactory.getLogger(thumbnailConsumer.class);
 
     public static void main(String[] args) throws Exception {
         rabbitMQConfig config = new rabbitMQConfig();
@@ -27,7 +24,7 @@ public class thumbnailConsumer {
         try (Connection connection = config.createConnection();
              final Channel channel = connection.createChannel()) {
             
-        LOGGER.info("Thumbnail Consumer aguardando mensagens na fila '{}'.", QUEUE_NAME);
+        System.out.println(" [*] Thumbnail Consumer aguardando mensagens.");
 
         Consumer consumer = new DefaultConsumer(channel) {
             @Override
@@ -37,11 +34,11 @@ public class thumbnailConsumer {
                     String jsonMessage = new String(body, StandardCharsets.UTF_8);
                     // Para simplicidade, parseamos o JSON manualmente. Em produção, use uma biblioteca como Gson ou Jackson.
                     videoId = jsonMessage.split("\"")[3];
-                    LOGGER.info("Recebida mensagem para gerar thumbnail para o vídeo: '{}'", videoId);
+                    System.out.println(" [x] Recebida mensagem para gerar thumbnail para o vídeo: '" + videoId + "'");
 
                     // --- Início da Lógica de Geração de Thumbnail ---
                     // Assumindo que os vídeos estão em 'uploads' e as thumbnails irão para 'thumbnails'
-                    File videoFile = new File("videoplayer\\src\\main\\java\\com\\messageria\\uploads\\" + videoId + ".mp4");
+                    File videoFile = new File("uploads/" + videoId + ".mp4");
                     if (!videoFile.exists()) {
                         throw new FileNotFoundException("Arquivo de vídeo não encontrado: " + videoFile.getAbsolutePath());
                     }
@@ -74,10 +71,10 @@ public class thumbnailConsumer {
                     ImageIO.write(bufferedImage, "jpg", thumbnailFile);
                     // --- Fim da Lógica de Geração de Thumbnail ---
 
-                    LOGGER.info("Thumbnail gerado com sucesso em: '{}'", thumbnailFile.getAbsolutePath());
+                    System.out.println(" [✔] Thumbnail gerado com sucesso em: '" + thumbnailFile.getAbsolutePath() + "'");
                     channel.basicAck(envelope.getDeliveryTag(), false);
                 } catch (Exception e) {
-                    LOGGER.error("Falha ao processar thumbnail para o vídeo '{}'. Enviando para DLQ.", videoId, e);
+                    System.err.println(" [!] Falha ao processar thumbnail para o vídeo '" + videoId + "'. Enviando para DLQ. Erro: " + e.getMessage());
                     channel.basicNack(envelope.getDeliveryTag(), false, false);
                 }
             }
