@@ -18,13 +18,13 @@ public class rabbitMQConfig {
     public rabbitMQConfig() {
         this.factory = new ConnectionFactory();
         factory.setHost("localhost"); // Host do RabbitMQ
-        factory.setUsername("user");  // Credenciais de segurança
+        factory.setUsername("user"); // Credenciais de segurança
         factory.setPassword("password");
     }
 
     public void setupTopology() throws IOException, TimeoutException {
         try (Connection connection = factory.newConnection();
-             Channel channel = connection.createChannel()) {
+                Channel channel = connection.createChannel()) {
 
             LOGGER.info("Configurando a topologia do RabbitMQ...");
 
@@ -45,9 +45,11 @@ public class rabbitMQConfig {
             channel.queueDeclare("transcode.queue", true, false, false, transcodeArgs);
             channel.queueBind("transcode.queue", "video.exchange", "video.created");
 
-            // 3. Fila para notificação (não precisa de DLQ neste exemplo, pois falhas de notificação não são críticas)
+            // 3. Fila para notificação (não precisa de DLQ neste exemplo, pois falhas de
+            // notificação não são críticas)
             channel.queueDeclare("notificacao.queue", true, false, false, null);
-            channel.queueBind("notificacao.queue", "video.exchange", "video.created");
+            channel.queueBind("notificacao.queue", "video.exchange", "transcode.job.finished");
+            channel.queueBind("notificacao.queue", "video.exchange", "thumbnail.created");
 
             // 4. Configuração do Dead Letter Exchange e suas Filas
             channel.exchangeDeclare("dlx.video", "direct", true); // Exchange DLX
