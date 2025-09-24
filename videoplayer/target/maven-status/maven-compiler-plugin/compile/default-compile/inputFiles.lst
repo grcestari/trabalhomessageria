@@ -1,6 +1,7 @@
 C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\config\rabbitMQConfig.java
-C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\consumers\notificationConsumer.java
-C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\consumers\thumbnailConsumer.java
-C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\consumers\transcodeConsumer.java
+C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\consumers\NotificationConsumer.java
+C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\consumers\ThumbnailConsumer.java
+C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\consumers\TranscodeConsumer.java
 C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\Main.java
-C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\producer\videoProducer.java
+C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\producer\VideoProducer.java
+C:\Users\jg_la\Documents\trabalhomessageria\videoplayer\src\main\java\com\messageria\repository\FileJobRepository.java

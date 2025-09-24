@@ -1,0 +1,8 @@
+com\messageria\repository\FileJobRepository.class
+com\messageria\consumers\ThumbnailConsumer.class
+com\messageria\consumers\NotificationConsumer$NotificationState.class
+com\messageria\consumers\NotificationConsumer.class
+com\messageria\producer\VideoProducer.class
+com\messageria\Main.class
+com\messageria\config\rabbitMQConfig.class
+com\messageria\consumers\TranscodeConsumer.class

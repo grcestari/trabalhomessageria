@@ -35,16 +35,15 @@ public class TranscodeConsumer {
                 long deliveryTag = delivery.getEnvelope().getDeliveryTag();
 
                 String videoId = null;
-                String jobId = null;
+                String jobId = "thumb-" + videoId + "-" + Instant.now().toEpochMilli();
                 String inputUrl = null;
 
                 try {
                     JsonNode root = MAPPER.readTree(raw);
-                    jobId = root.path("jobId").asText(null);
                     videoId = root.path("videoId").asText(null);
                     inputUrl = root.path("inputUrl").asText(null);
 
-                    if (jobId == null || videoId == null || inputUrl == null) {
+                    if ( videoId == null || inputUrl == null) {
                         throw new IllegalArgumentException(
                                 "Mensagem inválida, faltando jobId/videoId/inputUrl: " + raw);
                     }
@@ -109,7 +108,7 @@ public class TranscodeConsumer {
                             .deliveryMode(2)
                             .build();
 
-                    channel.basicPublish(EXCHANGE, "transcode.job.finished", props,
+                    channel.basicPublish(EXCHANGE, "transcode.created", props,
                             transcodeJSON.getBytes(StandardCharsets.UTF_8));
 
                     System.out.println("Publicado transcode.created,  videoId=" + videoId + " jobId=" + jobId);

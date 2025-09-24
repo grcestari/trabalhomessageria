@@ -42,16 +42,16 @@ public class ThumbnailConsumer {
                 String raw = new String(delivery.getBody(), StandardCharsets.UTF_8);
 
                 String videoId = null;
-                String jobId = null;
+                String jobId = "thumb-" + videoId + "-" + Instant.now().toEpochMilli();
                 String inputUrl = null;
 
                 try {
                     JsonNode root = MAPPER.readTree(raw);
-                    jobId = root.path("jobId").asText(null);
+                    
                     videoId = root.path("videoId").asText(null);
                     inputUrl = root.path("inputUrl").asText(null);
 
-                    if (jobId == null || videoId == null || inputUrl == null) {
+                    if (videoId == null || inputUrl == null) {
                         throw new IllegalArgumentException(
                                 "Mensagem inválida, faltando jobId/videoId/inputUrl: " + raw);
                     }
