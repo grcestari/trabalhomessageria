@@ -12,7 +12,7 @@ public class RabbitMQConfig {
 
     private final ConnectionFactory factory;
 
-    public rabbitMQConfig() {
+    public RabbitMQConfig() {
         this.factory = new ConnectionFactory();
         factory.setHost("localhost");
         factory.setUsername("user");
@@ -65,7 +65,7 @@ public class RabbitMQConfig {
     }
 
     public static void main(String[] args) throws IOException, TimeoutException {
-        rabbitMQConfig config = new RabbitMQConfig();
+        RabbitMQConfig config = new RabbitMQConfig();
         config.setupTopology();
     }
 }

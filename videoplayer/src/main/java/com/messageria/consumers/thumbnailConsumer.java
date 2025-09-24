@@ -2,7 +2,7 @@ package com.messageria.consumers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.messageria.config.rabbitMQConfig;
+import com.messageria.config.RabbitMQConfig;
 import com.messageria.repository.FileJobRepository;
 import com.rabbitmq.client.*;
 import org.jcodec.api.FrameGrab;
@@ -26,7 +26,7 @@ public class ThumbnailConsumer {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Iniciando Thumbnail Consumer");
-        rabbitMQConfig config = new rabbitMQConfig();
+        RabbitMQConfig config = new RabbitMQConfig();
 
         FileJobRepository repo = new FileJobRepository(Path.of("state"));
 

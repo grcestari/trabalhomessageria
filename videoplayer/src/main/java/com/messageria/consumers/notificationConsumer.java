@@ -2,7 +2,7 @@ package com.messageria.consumers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.messageria.config.rabbitMQConfig;
+import com.messageria.config.RabbitMQConfig;
 import com.rabbitmq.client.*;
 
 import java.io.*;
@@ -24,7 +24,7 @@ public class NotificationConsumer {
 
         System.out.println("Iniciando Notificacao Consumer");
 
-        rabbitMQConfig cfg = new rabbitMQConfig();
+        RabbitMQConfig cfg = new RabbitMQConfig();
         try (Connection conn = cfg.createConnection();
                 Channel channel = conn.createChannel()) {
 

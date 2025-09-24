@@ -2,7 +2,7 @@ package com.messageria.consumers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.messageria.config.rabbitMQConfig;
+import com.messageria.config.RabbitMQConfig;
 import com.messageria.repository.FileJobRepository;
 import com.rabbitmq.client.*;
 
@@ -22,7 +22,7 @@ public class TranscodeConsumer {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Iniciando Transcode Consumer");
-        rabbitMQConfig cfg = new rabbitMQConfig();
+        RabbitMQConfig cfg = new RabbitMQConfig();
         FileJobRepository repo = new FileJobRepository(Path.of("state"));
 
         try (Connection conn = cfg.createConnection(); Channel channel = conn.createChannel()) {
