@@ -9,6 +9,7 @@ import com.rabbitmq.client.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -20,120 +21,112 @@ public class TranscodeConsumer {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static void main(String[] args) throws Exception {
+        System.out.println("Iniciando Transcode Consumer");
         rabbitMQConfig cfg = new rabbitMQConfig();
-
-        // repository para idempotencia
         FileJobRepository repo = new FileJobRepository(Path.of("state"));
 
-        try (Connection conn = cfg.createConnection();
-             Channel ch = conn.createChannel()) {
+        try (Connection conn = cfg.createConnection(); Channel channel = conn.createChannel()) {
 
-            System.out.println("[*] Transcode Consumer aguardando mensagens...");
+            System.out.println("Transcode Consumer aguardando mensagens");
+            channel.basicQos(1);
 
-            // prefetch 1 (CPU-bound)
-            ch.basicQos(1);
+            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                String raw = new String(delivery.getBody(), StandardCharsets.UTF_8);
+                long deliveryTag = delivery.getEnvelope().getDeliveryTag();
+                
+                String videoId = null;
+                String jobId = null;
+                String inputUrl = null;
 
-            Consumer consumer = new DefaultConsumer(ch) {
-                @Override
-                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                    long deliveryTag = envelope.getDeliveryTag();
-                    String payload = new String(body, StandardCharsets.UTF_8);
-                    String jobId = null;
-                    String videoId = null;
-                    String inputUrl = null;
+                try {
+                    JsonNode root = MAPPER.readTree(raw);
+                    jobId = root.path("jobId").asText(null);
+                    videoId = root.path("videoId").asText(null);
+                    inputUrl = root.path("inputUrl").asText(null);
 
+                    if (jobId == null || videoId == null || inputUrl == null) {
+                        throw new IllegalArgumentException(
+                                "Mensagem inválida, faltando jobId/videoId/inputUrl: " + raw);
+                    }
+
+                    jobId = "transcode-" + videoId + "-" + Instant.now().toEpochMilli();
+
+                    System.out.println("Mensagem recebida: videoId='" + videoId + "' jobId='" + jobId + "'");
+
+                    if (repo.isFinished(jobId)) {
+                        System.out.println("Job já processado (jobId=" + jobId + ")");
+                        channel.basicAck(deliveryTag, false);
+                        return;
+                    }
+
+                    File videoFile = new File(inputUrl);
+                    System.out.println("Procurando arquivo de vídeo em: " + inputUrl);
+
+                    if (!videoFile.exists()) {
+                        System.err.println(" Arquivo de input não encontrado: " + videoFile.getAbsolutePath());
+                        channel.basicNack(deliveryTag, false, false);
+                        return;
+                    }
+
+                    File outDir = new File("outputs", videoId + "_transcode");
+                    if (!outDir.exists()) outDir.mkdirs();
+                    File out720 = new File(outDir, videoId + "_720p.mp4");
+                    File out480 = new File(outDir, videoId + "_480p.mp4");
+
+                    List<String> cmd720 = List.of("C:\\ffmpeg\\bin\\ffmpeg.exe", "-y", "-i",
+                            videoFile.getAbsolutePath(), "-vf", "scale=-2:720", "-c:v", "libx264",
+                            "-preset", "fast", "-b:v", "2500k", "-c:a", "aac", "-b:a", "128k", out720.getAbsolutePath());
+
+                    List<String> cmd480 = List.of("C:\\ffmpeg\\bin\\ffmpeg.exe", "-y", "-i",
+                            videoFile.getAbsolutePath(), "-vf", "scale=-2:480", "-c:v", "libx264",
+                            "-preset", "fast", "-b:v", "1000k", "-c:a", "aac", "-b:a", "96k", out480.getAbsolutePath());
+
+                    System.out.println("Executando ffmpeg 720p para job=" + jobId);
+                    runProcess(cmd720, 20, TimeUnit.MINUTES);
+
+                    System.out.println("Executando ffmpeg 480p para job=" + jobId);
+                    runProcess(cmd480, 15, TimeUnit.MINUTES);
+
+                    List<String> outputs = new ArrayList<>();
+                    outputs.add(out720.getAbsolutePath());
+                    outputs.add(out480.getAbsolutePath());
+
+                    repo.markFinished(jobId);
+
+                    String finishedJson = MAPPER.createObjectNode()
+                            .put("event", "TranscodeJobFinished")
+                            .put("jobId", jobId)
+                            .put("videoId", videoId)
+                            .putPOJO("outputs", outputs)
+                            .toString();
+
+                    AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+                            .contentType("application/json")
+                            .messageId(jobId)
+                            .correlationId(videoId)
+                            .deliveryMode(2)
+                            .build();
+
+                    channel.basicPublish(EXCHANGE, "transcode.job.finished", props,
+                            finishedJson.getBytes(StandardCharsets.UTF_8));
+                    System.out.println("Job " + jobId + " finalizado. outputs: " + outputs);
+
+                    channel.basicAck(deliveryTag, false);
+
+                } catch (Exception ex) {
+                    System.err.println("Erro processando transcode jobId=" + jobId + " videoId=" + videoId + " -> " + ex.getMessage());
                     try {
-                        JsonNode root = MAPPER.readTree(payload);
-                        // esperado: { "jobId":"job-1", "videoId":"media-123", "inputUrl":"uploads/media-123.mp4" }
-                        jobId = root.path("jobId").asText(null);
-                        videoId = root.path("videoId").asText(null);
-                        inputUrl = root.path("inputUrl").asText(null);
-
-                        if (jobId == null || videoId == null || inputUrl == null) {
-                            throw new IllegalArgumentException("Mensagem inválida, faltando jobId/videoId/inputUrl: " + payload);
-                        }
-
-                        // idempotência
-                        if (repo.isFinished(jobId)) {
-                            System.out.println("[i] Job já processado: " + jobId + " -> ack");
-                            ch.basicAck(deliveryTag, false);
-                            return;
-                        }
-
-                        // localizar input file (suporta path absoluto ou relativo)
-                        File inputFile = new File(inputUrl);
-                        if (!inputFile.exists()) {
-                            System.err.println("[!] Arquivo de input não encontrado: " + inputFile.getAbsolutePath());
-                            // erro permanente -> nack sem requeue -> DLQ
-                            ch.basicNack(deliveryTag, false, false);
-                            return;
-                        }
-
-                        // preparar outputs
-                        File outDir = new File("outputs", videoId);
-                        if (!outDir.exists()) outDir.mkdirs();
-                        File out720 = new File(outDir, videoId + "_720p.mp4");
-                        File out480 = new File(outDir, videoId + "_480p.mp4");
-
-                        // construir comandos ffmpeg
-                        List<String> cmd720 = List.of("C:\\ffmpeg\\bin\\ffmpeg.exe", "-y", "-i", inputFile.getAbsolutePath(),
-                                "-vf", "scale=-2:720", "-c:v", "libx264", "-preset", "fast", "-b:v", "2500k",
-                                "-c:a", "aac", "-b:a", "128k", out720.getAbsolutePath());
-
-                        List<String> cmd480 = List.of("C:\\ffmpeg\\bin\\ffmpeg.exe", "-y", "-i", inputFile.getAbsolutePath(),
-                                "-vf", "scale=-2:480", "-c:v", "libx264", "-preset", "fast", "-b:v", "1000k",
-                                "-c:a", "aac", "-b:a", "96k", out480.getAbsolutePath());
-
-                        // executa transcode (720p)
-                        System.out.println("[*] Executando ffmpeg 720p para job=" + jobId);
-                        runProcess(cmd720, 20, TimeUnit.MINUTES);
-
-                        System.out.println("[*] Executando ffmpeg 480p para job=" + jobId);
-                        runProcess(cmd480, 15, TimeUnit.MINUTES);
-
-                        // opcional: aqui você faria upload para S3/MinIO e obteria URLs finais
-                        // para simplicidade em dev, usamos os caminhos locais
-                        List<String> outputs = new ArrayList<>();
-                        outputs.add(out720.getAbsolutePath());
-                        outputs.add(out480.getAbsolutePath());
-
-                        // marcar job como finalizado (idempotência)
-                        repo.markFinished(jobId);
-
-                        // publicar evento de transcode finished
-                        String finishedJson = MAPPER.createObjectNode()
-                                .put("event", "TranscodeJobFinished")
-                                .put("jobId", jobId)
-                                .put("videoId", videoId)
-                                .putPOJO("outputs", outputs)
-                                .toString();
-
-                        AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-                                .contentType("application/json")
-                                .messageId(jobId)
-                                .correlationId(videoId)
-                                .deliveryMode(2)
-                                .build();
-
-                        ch.basicPublish(EXCHANGE, "transcode.job.finished", props, finishedJson.getBytes(StandardCharsets.UTF_8));
-                        System.out.println("[✓] Job " + jobId + " finalizado. outputs: " + outputs);
-
-                        // ack final
-                        ch.basicAck(deliveryTag, false);
-                    } catch (Exception ex) {
-                        System.err.println("[!] Erro processando transcode jobId=" + jobId + " videoId=" + videoId + " -> " + ex.getMessage());
-                        ex.printStackTrace();
-                        // regra simples: nack sem requeue -> vai pro DLQ (retry via TTL não implementado aqui)
-                        try {
-                            ch.basicNack(deliveryTag, false, false);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        channel.basicNack(deliveryTag, false, false);
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
             };
 
-            ch.basicConsume(QUEUE, false, consumer);
+            CancelCallback cancelCallback = consumerTag -> System.out.println("Consumer cancelado: " + consumerTag);
+
+            channel.basicConsume(QUEUE, false, deliverCallback, cancelCallback);
+
             // manter app vivo
             System.in.read();
         }
@@ -144,15 +137,10 @@ public class TranscodeConsumer {
         pb.redirectErrorStream(true);
         Process p = pb.start();
 
-        // consume output stream to avoid blocking
         Thread t = new Thread(() -> {
             try (InputStream is = p.getInputStream();
                  BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
-                String line;
-                while ((line = br.readLine()) != null) {
-                    // opcional: log
-                    // System.out.println("[ffmpeg] " + line);
-                }
+                while (br.readLine() != null) {}
             } catch (IOException ignored) {}
         });
         t.start();
