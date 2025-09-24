@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-public class rabbitMQConfig {
+public class RabbitMQConfig {
 
     private final ConnectionFactory factory;
 
@@ -65,7 +65,7 @@ public class rabbitMQConfig {
     }
 
     public static void main(String[] args) throws IOException, TimeoutException {
-        rabbitMQConfig config = new rabbitMQConfig();
+        rabbitMQConfig config = new RabbitMQConfig();
         config.setupTopology();
     }
 }
