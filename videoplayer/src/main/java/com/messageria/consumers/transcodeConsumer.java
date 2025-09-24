@@ -94,9 +94,9 @@ public class TranscodeConsumer {
                     outputs.add(out480.getAbsolutePath());
 
                     repo.markFinished(jobId);
-
+                    
                     String transcodeJSON = MAPPER.createObjectNode()
-                            .put("event", "TranscodeJobFinished")
+                            .put("event", "TranscodeCreated")
                             .put("jobId", jobId)
                             .put("videoId", videoId)
                             .putPOJO("outputs", outputs)

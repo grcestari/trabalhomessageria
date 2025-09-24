@@ -24,12 +24,6 @@
         <artifactId>jcodec-javase</artifactId>
         <version>0.2.5</version>
     </dependency>
-    <!-- Adicionado para resolver o warning do SLF4J e habilitar o logging -->
-    <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>1.7.36</version> <!-- Versão compatível com a usada pelo amqp-client -->
-    </dependency>
     <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>

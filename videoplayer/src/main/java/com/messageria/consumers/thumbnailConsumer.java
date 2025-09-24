@@ -38,8 +38,8 @@ public class ThumbnailConsumer {
             channel.basicQos(2);
 
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-                String raw = new String(delivery.getBody(), StandardCharsets.UTF_8);
                 long deliveryTag = delivery.getEnvelope().getDeliveryTag();
+                String raw = new String(delivery.getBody(), StandardCharsets.UTF_8);
 
                 String videoId = null;
                 String jobId = null;
@@ -121,8 +121,7 @@ public class ThumbnailConsumer {
                     System.out.println("Publicado thumbnail.created,  videoId=" + videoId + " jobId=" + jobId);
 
 
-                    System.out
-                            .println("Thumbnail gerado: " + thumbnailFile.getAbsolutePath() + " (jobId=" + jobId + ")");
+                    System.out.println("Thumbnail gerado: " + thumbnailFile.getAbsolutePath() + " (jobId=" + jobId + ")");
 
                     channel.basicAck(deliveryTag, false);
 
