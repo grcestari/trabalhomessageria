@@ -20,7 +20,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 
 public class ThumbnailConsumer {
-    private static final String QUEUE_NAME = "thumbnail.queue";
+    private static final String QUEUE = "thumbnail.queue";
     private static final String EXCHANGE = "video.exchange";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -99,26 +99,27 @@ public class ThumbnailConsumer {
                     BufferedImage bufferedImage = AWTUtil.toBufferedImage(picture);
                     ImageIO.write(bufferedImage, "jpg", thumbnailFile);
 
-                    String thumbEventJson = MAPPER.createObjectNode()
+                    repo.markFinished(jobId);
+
+                    String thumbJSON = MAPPER.createObjectNode()
                             .put("event", "ThumbnailCreated")
                             .put("jobId", jobId)
                             .put("videoId", videoId)
                             .put("thumbnail", thumbnailFile.getAbsolutePath())
                             .toString();
 
-                    AMQP.BasicProperties pubProps = new AMQP.BasicProperties.Builder()
+                    AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
                             .contentType("application/json")
                             .messageId(jobId)
                             .correlationId(videoId)
                             .deliveryMode(2)
                             .build();
 
-                    channel.basicPublish("video.exchange", "thumbnail.created", pubProps,
-                            thumbEventJson.getBytes(StandardCharsets.UTF_8));
+                    channel.basicPublish(EXCHANGE, "thumbnail.created", props,
+                            thumbJSON.getBytes(StandardCharsets.UTF_8));
 
                     System.out.println("Publicado thumbnail.created,  videoId=" + videoId + " jobId=" + jobId);
 
-                    repo.markFinished(jobId);
 
                     System.out
                             .println("Thumbnail gerado: " + thumbnailFile.getAbsolutePath() + " (jobId=" + jobId + ")");
@@ -137,8 +138,9 @@ public class ThumbnailConsumer {
                 }
             };
 
-            channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> {
-            });
+            CancelCallback cancelCallback = consumerTag -> System.out.println("Consumer cancelado: " + consumerTag);
+
+            channel.basicConsume(QUEUE, false, deliverCallback, cancelCallback);
 
             System.in.read();
         }

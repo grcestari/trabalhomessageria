@@ -33,7 +33,7 @@ public class TranscodeConsumer {
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 String raw = new String(delivery.getBody(), StandardCharsets.UTF_8);
                 long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-                
+
                 String videoId = null;
                 String jobId = null;
                 String inputUrl = null;
@@ -69,13 +69,15 @@ public class TranscodeConsumer {
                     }
 
                     File outDir = new File("outputs", videoId + "_transcode");
-                    if (!outDir.exists()) outDir.mkdirs();
+                    if (!outDir.exists())
+                        outDir.mkdirs();
                     File out720 = new File(outDir, videoId + "_720p.mp4");
                     File out480 = new File(outDir, videoId + "_480p.mp4");
 
                     List<String> cmd720 = List.of("C:\\ffmpeg\\bin\\ffmpeg.exe", "-y", "-i",
                             videoFile.getAbsolutePath(), "-vf", "scale=-2:720", "-c:v", "libx264",
-                            "-preset", "fast", "-b:v", "2500k", "-c:a", "aac", "-b:a", "128k", out720.getAbsolutePath());
+                            "-preset", "fast", "-b:v", "2500k", "-c:a", "aac", "-b:a", "128k",
+                            out720.getAbsolutePath());
 
                     List<String> cmd480 = List.of("C:\\ffmpeg\\bin\\ffmpeg.exe", "-y", "-i",
                             videoFile.getAbsolutePath(), "-vf", "scale=-2:480", "-c:v", "libx264",
@@ -93,7 +95,7 @@ public class TranscodeConsumer {
 
                     repo.markFinished(jobId);
 
-                    String finishedJson = MAPPER.createObjectNode()
+                    String transcodeJSON = MAPPER.createObjectNode()
                             .put("event", "TranscodeJobFinished")
                             .put("jobId", jobId)
                             .put("videoId", videoId)
@@ -108,17 +110,19 @@ public class TranscodeConsumer {
                             .build();
 
                     channel.basicPublish(EXCHANGE, "transcode.job.finished", props,
-                            finishedJson.getBytes(StandardCharsets.UTF_8));
-                    System.out.println("Job " + jobId + " finalizado. outputs: " + outputs);
+                            transcodeJSON.getBytes(StandardCharsets.UTF_8));
+
+                    System.out.println("Publicado transcode.created,  videoId=" + videoId + " jobId=" + jobId);
 
                     channel.basicAck(deliveryTag, false);
 
-                } catch (Exception ex) {
-                    System.err.println("Erro processando transcode jobId=" + jobId + " videoId=" + videoId + " -> " + ex.getMessage());
+                } catch (Exception e) {
+                    System.out.println("Falha processando thumbnail para videoId='" + videoId + "' jobId='" + jobId
+                            + "'. Enviando para DLQ. Erro: " + e.getMessage());
                     try {
                         channel.basicNack(deliveryTag, false, false);
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                    } catch (IOException ioe) {
+                        System.out.println("Erro ao enviar nack: " + ioe.getMessage());
                     }
                 }
             };
@@ -127,7 +131,6 @@ public class TranscodeConsumer {
 
             channel.basicConsume(QUEUE, false, deliverCallback, cancelCallback);
 
-            // manter app vivo
             System.in.read();
         }
     }
@@ -139,19 +142,21 @@ public class TranscodeConsumer {
 
         Thread t = new Thread(() -> {
             try (InputStream is = p.getInputStream();
-                 BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
-                while (br.readLine() != null) {}
-            } catch (IOException ignored) {}
+                    BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
+                while (br.readLine() != null) {
+                }
+            } catch (IOException ignored) {
+            }
         });
         t.start();
 
         boolean finished = p.waitFor(timeout, unit);
         if (!finished) {
             p.destroyForcibly();
-            throw new RuntimeException("ffmpeg timed out (killed)");
+            throw new RuntimeException("Time out");
         }
         if (p.exitValue() != 0) {
-            throw new RuntimeException("ffmpeg failed with exit code " + p.exitValue());
+            throw new RuntimeException("Erro: " + p.exitValue());
         }
     }
 }

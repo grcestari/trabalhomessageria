@@ -43,7 +43,7 @@ public class rabbitMQConfig {
 
             // Notificação
             channel.queueDeclare("notificacao.queue", true, false, false, null);
-            channel.queueBind("notificacao.queue", "video.exchange", "transcode.job.finished");
+            channel.queueBind("notificacao.queue", "video.exchange", "transcode.created");
             channel.queueBind("notificacao.queue", "video.exchange", "thumbnail.created");
 
             channel.exchangeDeclare("dlx.video", "direct", true);
